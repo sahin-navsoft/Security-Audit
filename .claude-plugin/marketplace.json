@@ -1,0 +1,12 @@
+{
+  "name": "code-quality-tools",
+  "owner": { "name": "Sahin Aktar Mondal", "email": "developer@thenavsoft.com" },
+  "description": "Internal tools for auditing code quality and live-site configuration.",
+  "plugins": [
+    {
+      "name": "code-quality-suite",
+      "source": "./plugins/code-quality-suite",
+      "description": "Full code-quality audit (6 parallel reviewers, HTML/PDF report) plus a passive live-site health check."
+    }
+  ]
+}

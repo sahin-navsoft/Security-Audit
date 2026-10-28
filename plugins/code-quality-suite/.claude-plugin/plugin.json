@@ -1,0 +1,9 @@
+{
+  "name": "code-quality-suite",
+  "displayName": "Code Quality Suite",
+  "version": "1.0.0",
+  "description": "Full code-quality audit with six parallel reviewers (standards, duplication, logging, secrets, tests, dependencies) that produces a color-coded HTML/PDF report with a health score and effort-sized fix plan, plus a passive read-only live-site health check (TLS, security headers, cookies, HTTP->HTTPS redirect).",
+  "author": { "name": "Sahin Aktar Mondal", "email": "developer@thenavsoft.com" },
+  "license": "MIT",
+  "keywords": ["audit", "code-quality", "security", "tech-debt", "live-site", "report"]
+}
