@@ -33,8 +33,33 @@
       "fix": "Upgrade one major at a time with `ng update`, running the tests after each step.",
       "effort": "complex",
       "package": "@angular/core@15.2.0 (15.2.0 -> 17.3.0)"
+    },
+    {
+      "id": "F3",
+      "severity": "high",
+      "category": "Loopholes",
+      "title": "Guest order details open to anyone who guesses an order number",
+      "what": "The guest order-tracking page loads an order using only the numeric id from the URL; nothing checks the email or a secret token.",
+      "attack_scenario": "Someone who places one order sees their order number and can step through nearby numbers to read other customers' names, addresses and items.",
+      "why": "Customer personal data can be collected in bulk without logging in.",
+      "fix": "Require the order email or a random tracking token alongside the id, and check it on the server.",
+      "effort": "medium",
+      "exploitability": "easy",
+      "owasp": "A01 Broken Access Control",
+      "cwe": "CWE-639",
+      "locations": [{ "path": "frontend/src/app/guest/order-track.component.ts", "line": 40 }]
     }
   ],
+  "gap_analysis": {
+    "baseline": "OWASP ASVS 4.0 Level 1",
+    "intro": "Based on the code, CI and deploy config in this repository.",
+    "controls": [
+      { "area": "Headers", "control": "Content-Security-Policy", "status": "missing", "evidence": "No CSP set in server.ts or index.html.", "finding": "F7" },
+      { "area": "Transport", "control": "HTTP redirected to HTTPS", "status": "partial", "evidence": "server.ts redirects only when X-Forwarded-Proto is sent." },
+      { "area": "Dependencies", "control": "Lockfile committed", "status": "in place", "evidence": "package-lock.json is tracked." }
+    ]
+  },
+  "reviewers": 9,
   "fix_order": [
     { "step": "Security first", "why": "Leaked secrets cause damage until they are rotated." },
     { "step": "Shared helpers", "why": "Later refactors build on them." }
@@ -60,7 +85,7 @@
 | `summary` | yes | 2-4 plain sentences: overall state, the biggest risks, and what to do first. Write it for a manager as much as a developer. |
 | `findings[].id` | no | `F1`, `F2`, ... in report order; generated if missing. |
 | `findings[].severity` | yes | `high`, `medium` or `low`. |
-| `findings[].category` | yes | Exactly one of `Standards`, `Duplication`, `Logging`, `Security`, `Testing`, `Dependencies`. |
+| `findings[].category` | yes | Exactly one of `Standards`, `Duplication`, `Logging`, `Security`, `Vulnerabilities`, `Loopholes`, `Testing`, `Dependencies`. |
 | `findings[].title` | yes | Short headline, under ~12 words. |
 | `findings[].what` | yes | What is wrong, in plain words, with the concrete detail. |
 | `findings[].why` | yes | The consequence for the team or users, without jargon. |
@@ -69,6 +94,13 @@
 | `findings[].locations` | for code findings | List of `{ "path": <relative to root>, "line": <number> }`. Use every file:line the finding mentions. |
 | `findings[].package` | for dependency findings | `name@version (current -> latest)`. |
 | `findings[].also_flagged_by` | no | Other categories that reported the same issue (from deduplication). |
+| `findings[].attack_scenario` | for Vulnerabilities/Loopholes | 1-2 plain sentences: who could do what, through which entry point, and what they gain. No payloads or exploit code. Shown as "How it could be abused". |
+| `findings[].exploitability` | for Vulnerabilities/Loopholes | `easy`, `moderate` or `hard`. |
+| `findings[].owasp` | no | OWASP Top 10 category, e.g. `A01 Broken Access Control`. |
+| `findings[].cwe` | no | CWE id, e.g. `CWE-639`. |
+| `gap_analysis` | no | Security-controls table from Agent 9: `{ "baseline", "intro", "controls": [{ "area", "control", "status", "evidence", "finding" }] }`. `status` is one of `missing`, `partial`, `in place`, `not applicable`; `finding` is an optional F-id that covers the gap. |
+| `live_site` | no | Passive live-site block, see SKILL.md Step 4. |
+| `reviewers` | no | Number of agents that ran (default 6); shown in the methodology note. |
 | `fix_order` | yes | Ordered steps, each `{ "step", "why" }`. |
 | `verification` | yes | Checklist items adapted to the project's real commands. |
 | `tool_notes` | no | Which audit tools ran or were missing. |

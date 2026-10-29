@@ -2,7 +2,7 @@
 
 Two skills for auditing a codebase and its live deployment, with a polished HTML/PDF report.
 
-- **code-audit** — runs six parallel reviewers (coding standards, duplication, logging, secrets, test quality, dependency freshness) and produces a color-coded HTML report with a health score, plain-language findings, clickable file links and an effort-sized fix plan. Can optionally run the passive live-site check and walk you through fixing issues.
+- **code-audit** — runs six parallel reviewers (coding standards, duplication, logging, secrets, test quality, dependency freshness) and produces a color-coded HTML report with a health score, plain-language findings, clickable file links and an effort-sized fix plan. Can optionally run the passive live-site check and walk you through fixing issues. In a full run it also includes three read-only security reviewers (code-level OWASP Top 10 vulnerabilities, an attacker's-eye loophole review, and an OWASP ASVS controls gap analysis) — all source-reading only, no live attacks or exploit code.
 - **live-site-audit** — a passive, read-only check of a running site (TLS, security headers, cookie flags, HTTP→HTTPS redirect). One GET per URL; no payloads, no probing. Only for sites you are authorized to test.
 
 Both scripts use only the Python standard library — no install step.

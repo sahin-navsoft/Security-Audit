@@ -22,12 +22,15 @@ SEVERITY_MEANING = {
     "medium": "Plan a fix: makes the code harder to work on or trust.",
     "low": "Nice to fix: tidy-ups and small improvements.",
 }
-CATEGORIES = ["Standards", "Duplication", "Logging", "Security", "Testing", "Dependencies"]
+CATEGORIES = ["Standards", "Duplication", "Logging", "Security", "Vulnerabilities", "Loopholes",
+              "Testing", "Dependencies"]
 CATEGORY_LABEL = {
     "Standards": "Coding Standards",
     "Duplication": "Duplicate Code",
     "Logging": "Logging & Debug Leftovers",
     "Security": "Secrets & Security",
+    "Vulnerabilities": "Vulnerabilities",
+    "Loopholes": "Exploitable Loopholes",
     "Testing": "Tests",
     "Dependencies": "Dependencies",
 }
@@ -36,9 +39,16 @@ CATEGORY_CHECKS = {
     "Duplication": "The same logic, blocks or constants are not copy-pasted in several places.",
     "Logging": "No raw console/print calls, debug leftovers or sensitive data in logs.",
     "Security": "No hardcoded secrets, unsafe env handling, .gitignore gaps or leaking errors.",
+    "Vulnerabilities": "No injection, XSS, SSRF, open redirect, broken access control or unsafe upload in the code.",
+    "Loopholes": "Entry points and business rules can't be abused (price tampering, guessable IDs, missing limits).",
     "Testing": "Source files have meaningful tests that cover edge cases and are not fragile.",
     "Dependencies": "Packages are not outdated or vulnerable, and the lockfile is committed.",
 }
+EXPLOITABILITY = ["easy", "moderate", "hard"]
+EXPLOITABILITY_LABEL = {"easy": "Easy to abuse", "moderate": "Needs some effort to abuse",
+                        "hard": "Hard to abuse"}
+GAP_STATUSES = ["missing", "partial", "in place", "not applicable"]
+GAP_LABEL = {"missing": "Missing", "partial": "Partial", "in place": "In place", "not applicable": "N/A"}
 EFFORTS = ["quick", "medium", "complex"]
 EFFORT_LABEL = {"quick": "Quick win", "medium": "Medium effort", "complex": "Complex"}
 EFFORT_TIME = {"quick": "under 30 min each", "medium": "30 min to 2 hours each", "complex": "more than 2 hours each"}
@@ -75,7 +85,23 @@ def load(path: str) -> dict:
         f["effort"] = eff if eff in EFFORTS else "medium"
         if not f.get("title"):
             fail(f"finding {f['_ref']}: missing 'title'")
+        if f.get("exploitability") is not None:
+            ex = str(f["exploitability"]).lower()
+            if ex not in EXPLOITABILITY:
+                fail(f"finding {f['_ref']}: exploitability must be one of {EXPLOITABILITY}, got {ex!r}")
+            f["exploitability"] = ex
         f.setdefault("locations", [])
+    gap = data.get("gap_analysis")
+    if gap:
+        if not isinstance(gap.get("controls"), list):
+            fail("gap_analysis.controls must be a list")
+        for i, c in enumerate(gap["controls"], 1):
+            st = str(c.get("status", "")).lower()
+            if st not in GAP_STATUSES:
+                fail(f"gap_analysis control #{i}: status must be one of {GAP_STATUSES}, got {st!r}")
+            c["status"] = st
+            if not c.get("control"):
+                fail(f"gap_analysis control #{i}: missing 'control'")
     # Number findings in report order when the data did not supply ids.
     if not all(f.get("id") for f in findings):
         order = {s: i for i, s in enumerate(SEVERITIES)}
@@ -114,8 +140,14 @@ def finding_card(f: dict, root: str) -> str:
     also = ""
     if f.get("also_flagged_by"):
         also = '<span class="tag">Also found by: ' + esc(", ".join(f["also_flagged_by"])) + "</span>"
+    for key in ("owasp", "cwe"):
+        if f.get(key):
+            also += f'<span class="tag ref">{esc(f[key])}</span>'
+    if f.get("exploitability"):
+        also += f'<span class="tag exploit-{f["exploitability"]}">{EXPLOITABILITY_LABEL[f["exploitability"]]}</span>'
     rows = ""
-    for key, label in [("what", "What we found"), ("why", "Why it matters"), ("fix", "How to fix")]:
+    for key, label in [("what", "What we found"), ("attack_scenario", "How it could be abused"),
+                       ("why", "Why it matters"), ("fix", "How to fix")]:
         if f.get(key):
             rows += f'<div class="row"><div class="row-label">{label}</div><div>{esc(f[key])}</div></div>'
     return f"""
@@ -170,6 +202,35 @@ def build_live_site(ls: dict) -> str:
   {targets_block}
   <div class="ls-cols">{good_block}{issues_block}</div>
   <p class="muted small">The matching issues also appear as cards in "All findings" below.</p>
+</section>"""
+
+
+def build_gap_analysis(gap: dict) -> str:
+    """Render the security-controls gap analysis table, or '' when absent."""
+    if not gap:
+        return ""
+    controls = gap["controls"]
+    counts = Counter(c["status"] for c in controls)
+    pills = "".join(
+        f'<span class="gap-pill gap-{s.replace(" ", "-")}">{GAP_LABEL[s]}: {counts[s]}</span>'
+        for s in GAP_STATUSES if counts[s]
+    )
+    order = {s: i for i, s in enumerate(GAP_STATUSES)}
+    rows = ""
+    for c in sorted(controls, key=lambda c: order[c["status"]]):
+        ref = f' <span class="fid">{esc(c["finding"])}</span>' if c.get("finding") else ""
+        rows += (f'<tr><td class="small muted">{esc(c.get("area", ""))}</td><td><strong>{esc(c["control"])}</strong></td>'
+                 f'<td><span class="gap-pill gap-{c["status"].replace(" ", "-")}">{GAP_LABEL[c["status"]]}</span></td>'
+                 f'<td class="small">{esc(c.get("evidence", ""))}{ref}</td></tr>')
+    baseline = esc(gap.get("baseline", "a standard security checklist"))
+    return f"""
+<section class="gap">
+  <h2>Security gap analysis</h2>
+  <p>We compared the code and its configuration against {baseline} to see which standard protections are in place, partly in place, or missing. {esc(gap.get('intro', ''))}</p>
+  <div class="gap-sum">{pills}</div>
+  <table class="gap-table"><thead><tr><th>Area</th><th>Protection</th><th>Status</th><th>What we saw</th></tr></thead>
+  <tbody>{rows}</tbody></table>
+  <p class="muted small">Missing or partial protections that carry real risk also appear as cards in "All findings" below.</p>
 </section>"""
 
 
@@ -252,6 +313,8 @@ def render(data: dict) -> str:
         f'<div><span class="badge {s}">{SEVERITY_LABEL[s]}</span> {SEVERITY_MEANING[s]}</div>' for s in SEVERITIES
     )
     live_site_html = build_live_site(data.get("live_site"))
+    gap_html = build_gap_analysis(data.get("gap_analysis"))
+    reviewers = data.get("reviewers") or 6
     report_date = data.get("date") or date.today().isoformat()
     title = f"Code Audit Report – {data.get('project_name', 'Project')}"
 
@@ -296,6 +359,7 @@ def render(data: dict) -> str:
 </section>
 
 {live_site_html}
+{gap_html}
 <section>
   <h2>Results by area</h2>
   <table class="cats"><thead><tr><th>Area checked</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th><th>Overview</th></tr></thead>
@@ -317,7 +381,7 @@ def render(data: dict) -> str:
 
 <section class="appendix">
   <h2>How this audit was done</h2>
-  <p>Six automated reviewers each checked one area of the code in parallel. Their results were merged, duplicates removed, and each issue rated by severity and effort.
+  <p>{reviewers} automated reviewers each checked one area of the code in parallel. Security reviewers only read the code: no attacks were run against any system. Their results were merged, duplicates removed, and each issue rated by severity and effort.
   The health score starts at 100 and subtracts {PENALTY['high']} per high, {PENALTY['medium']} per medium and {PENALTY['low']} per low issue. It is a rough guide, not an exact measure.</p>
   {f'<h3>Tool notes</h3><ul>{notes}</ul>' if notes else ''}
   <p class="muted small">File links open in VS Code. Findings come from automated analysis and should be confirmed before large changes.</p>
@@ -398,6 +462,13 @@ a.loc:hover{background:#e3e7f6}
 .ls-col h3{margin:0 0 8px}.ls-col ul{margin:0;padding-left:20px}.ls-col li{margin:5px 0}
 .ls-good{background:#f1f9f2;border-color:#cfe8d4}.ls-good h3{color:var(--ok)}
 .ls-issue{background:var(--high-bg);border-color:#f3c9c4}.ls-issue h3{color:var(--high)}
+.tag.ref{background:#eef0fa;color:#283593;font-family:ui-monospace,Menlo,Consolas,monospace}
+.exploit-easy{background:var(--high-bg);color:var(--high);font-weight:600}.exploit-moderate{background:var(--medium-bg);color:var(--medium)}.exploit-hard{background:var(--low-bg);color:var(--low)}
+.gap-sum{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.gap-pill{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.gap-missing{background:var(--high-bg);color:var(--high)}.gap-partial{background:var(--medium-bg);color:var(--medium)}
+.gap-in-place{background:#e8f5e9;color:var(--ok)}.gap-not-applicable{background:var(--bg);color:var(--muted)}
+.gap-table td:nth-child(3){width:1%}
 .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:24px}
 .hidden{display:none}
 @media (max-width:720px){.cover{flex-direction:column;align-items:flex-start}.cards{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}.ls-cols{grid-template-columns:1fr}}

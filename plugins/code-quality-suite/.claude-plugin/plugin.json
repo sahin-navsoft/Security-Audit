@@ -1,9 +1,9 @@
 {
   "name": "code-quality-suite",
   "displayName": "Code Quality Suite",
-  "version": "1.0.0",
-  "description": "Full code-quality audit with six parallel reviewers (standards, duplication, logging, secrets, tests, dependencies) that produces a color-coded HTML/PDF report with a health score and effort-sized fix plan, plus a passive read-only live-site health check (TLS, security headers, cookies, HTTP->HTTPS redirect).",
+  "version": "1.1.0",
+  "description": "Code-quality and security audit with up to nine parallel read-only reviewers (standards, duplication, logging, secrets, tests, dependencies, plus code-level vulnerabilities (OWASP Top 10), attacker's-eye exploitable loopholes, and an OWASP ASVS gap analysis) that produces a color-coded HTML/PDF report with a health score, attack scenarios and an effort-sized fix plan, plus a passive read-only live-site health check (TLS, security headers, cookies, HTTP->HTTPS redirect).",
   "author": { "name": "Sahin Aktar Mondal", "email": "developer@thenavsoft.com" },
   "license": "MIT",
-  "keywords": ["audit", "code-quality", "security", "tech-debt", "live-site", "report"]
+  "keywords": ["audit", "code-quality", "security", "vulnerability", "owasp", "tech-debt", "live-site", "report"]
 }
